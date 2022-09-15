@@ -25,6 +25,8 @@ public class KeyManagementService: KeyManagementServiceProtocol {
     }
 
     private var keychain: KeychainStorageProtocol
+    private let logger = ConsoleLogger(loggingLevel:.debug)
+    private let lockQueue = DispatchQueue(label: "KeyManagementService.lockQueue")
 
     public init(keychain: KeychainStorageProtocol) {
         self.keychain = keychain
@@ -43,7 +45,14 @@ public class KeyManagementService: KeyManagementServiceProtocol {
     }
 
     public func setSymmetricKey(_ symmetricKey: SymmetricKey, for topic: String) throws {
-        try keychain.add(symmetricKey, forKey: topic)
+        lockQueue.sync {
+            do {
+                try keychain.add(symmetricKey, forKey: topic)
+                logger.debug("Set symetricKey")
+            } catch {
+                logger.error("\(error.localizedDescription)")
+            }
+        }
     }
 
     public func setPrivateKey(_ privateKey: AgreementPrivateKey) throws {
@@ -60,6 +69,7 @@ public class KeyManagementService: KeyManagementServiceProtocol {
 
     public func getSymmetricKey(for topic: String) -> SymmetricKey? {
         do {
+            logger.debug("Get symetricKey")
             return try keychain.read(key: topic) as SymmetricKey
         } catch {
             return nil
@@ -67,11 +77,12 @@ public class KeyManagementService: KeyManagementServiceProtocol {
     }
 
     public func getSymmetricKeyRepresentable(for topic: String) -> Data? {
-        if let key = getAgreementSecret(for: topic)?.sharedKey {
-            return key.rawRepresentation
-        } else {
-            return getSymmetricKey(for: topic)?.rawRepresentation
-        }
+        return lockQueue.sync {
+            if let key = getAgreementSecret(for: topic)?.sharedKey {
+                return key.rawRepresentation
+            } else {
+                return getSymmetricKey(for: topic)?.rawRepresentation
+            }
     }
 
     public func getPrivateKey(for publicKey: AgreementPublicKey) throws -> AgreementPrivateKey? {
