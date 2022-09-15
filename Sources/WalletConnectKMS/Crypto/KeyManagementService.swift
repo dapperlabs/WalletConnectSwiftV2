@@ -1,4 +1,5 @@
 import Foundation
+import WalletConnectUtils
 
 public protocol KeyManagementServiceProtocol {
     func createX25519KeyPair() throws -> AgreementPublicKey
@@ -83,6 +84,7 @@ public class KeyManagementService: KeyManagementServiceProtocol {
             } else {
                 return getSymmetricKey(for: topic)?.rawRepresentation
             }
+        }
     }
 
     public func getPrivateKey(for publicKey: AgreementPublicKey) throws -> AgreementPrivateKey? {
